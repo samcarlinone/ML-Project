@@ -9,8 +9,11 @@ let attributes = [
 ];
 let features = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety'];
 let classes = ['unacc', 'acc', 'good', 'vgood'];
+
+// ==== <Configuration>
 let maxTreeDepth = 16;
-let prettyPrint = true;
+let synthetic = true;
+let trials = false;
 
 // ==== <Statistics Functions>
 function entropy(set) {
@@ -115,11 +118,7 @@ function isPrimitive(obj) {
 
 // ==== <Main>
 el = document.querySelector('pre');
-
-if (prettyPrint)
-  output.log('Refresh to reshuffle data\n');
-else
-  output.log('Depth,Training Accuracy,Testing Accuracy');
+output.log('Refresh to reshuffle data\n');
 
 // ==== <Prep the data>
 // lines = [[features ..., label], ...]
@@ -140,38 +139,73 @@ let dominant = range(attributes.length + 1)
 // filtered = [[label, [features, ...]], ...]
 let filtered = lines.map(line => [line[attributes.length], line.slice(0, attributes.length).map((item, i) => item === '?' ? dominant[i] : item)]);
 
-// ==== <Run the tests>
-// Shuffle and split: training 80%, testing 20%
-let training = shuffle(filtered);
-let testing = training.splice(435 * 0.8);
+// ==== <Inject Synthetic Features>
+if (synthetic) {
+  let count = features.length;
+  for (let i = 0; i < count - 1; i++) {
+    for (let q = i + 1; q < count; q++) {
+      features.push(features[i] + '-' + features[q]);
 
-let lastTree = null;
-for (let depth = 1; depth < maxTreeDepth; depth++) {
-  let tree = generateTree(training, depth);
-  
-  if (lastTree && deepEqual(lastTree, tree))
-    break;
+      attributes.push(attributes[i].map(attrI => attributes[q].map(attrQ => attrI + '-' + attrQ)).flat());
 
-  let testFunc = (correct, item) => correct + (predict(tree, item) === item[0]);
-  
-  let trainAcc = training.reduce(testFunc, 0) / training.length;
-  let testAcc = testing.reduce(testFunc, 0) / testing.length;
-  
-
-  if (prettyPrint) {
-    let pretty = num => Math.round(num * 1000) / 1000;
-    output.log(`Max Depth ${depth}`);
-    output.log(`\t training acc: ${pretty(trainAcc)}`);
-    output.log(`\t testing acc: ${pretty(testAcc)}`);
-  } else {
-    // output.log(`${depth},${trainAcc},${testAcc}`);
-    output.log(`${testAcc}`);
+      filtered.forEach(line => line[1].push(line[1][i] + '-' + line[1][q]))
+    }
   }
-  
-  lastTree = tree;
+}
+// ==== </Inject Synthetic Features>
+
+// ==== <Run the tests>
+function evaluateData(print = false) {
+  // Shuffle and split: training 80%, testing 20%
+  let training = shuffle(filtered);
+  let testing = training.splice(training.length * 0.8);
+
+  let lastTree = null;
+  let bestTestAcc = 0;
+  for (let depth = 1; depth < maxTreeDepth; depth++) {
+    let tree = generateTree(training, depth);
+    
+    if (lastTree && deepEqual(lastTree, tree))
+      break;
+
+    let testFunc = (correct, item) => correct + (predict(tree, item) === item[0]);
+    
+    let trainAcc = training.reduce(testFunc, 0) / training.length;
+    let testAcc = testing.reduce(testFunc, 0) / testing.length;
+
+    bestTestAcc = Math.max(bestTestAcc, testAcc);
+    
+    if (print) {
+      let pretty = num => Math.round(num * 1000) / 1000;
+      output.log(`Max Depth ${depth}`);
+      output.log(`\t training acc: ${pretty(trainAcc)}`);
+      output.log(`\t testing acc: ${pretty(testAcc)}`);
+    }
+    
+    lastTree = tree;
+  }
+
+  clean = tree => { Object.keys(tree).forEach(key => typeof tree[key] === 'object' && clean(tree[key])); delete tree.depth; tree.feature = features[tree.feature]; return tree; };
+
+  if (print) {
+    output.log('\nFinal tree\n');
+    output.log(treeify.asTree(clean(lastTree), true));
+  }
+
+  return bestTestAcc;
 }
 
-clean = tree => { Object.keys(tree).forEach(key => typeof tree[key] === 'object' && clean(tree[key])); delete tree.depth; tree.feature = features[tree.feature]; return tree; };
+evaluateData(true);
 
-output.log('\nFinal tree\n');
-output.log(treeify.asTree(clean(lastTree), true));
+if (trials) {
+  let trialCount = 1000;
+  output.log(`Running ${trialCount} trials ...`);
+
+  window.setTimeout(() => {
+    let tests = range(trialCount).map(_ => evaluateData());
+
+    output.log(`Min: ${Math.min(...tests)}`);
+    output.log(`Max: ${Math.max(...tests)}`);
+    output.log(`Avg: ${tests.reduce((t, i) => t + i) / tests.length}`);
+  }, 1000);
+}
