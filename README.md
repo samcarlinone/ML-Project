@@ -1,1 +1,1 @@
-ml-project
+# Group project for ML
