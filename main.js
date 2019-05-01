@@ -13,7 +13,7 @@ let classes = ['unacc', 'acc', 'good', 'vgood'];
 // ==== <Configuration>
 let maxTreeDepth = 16;
 let synthetic = true;
-let trials = false;
+let trials = true;
 
 // ==== <Statistics Functions>
 function entropy(set) {
@@ -142,13 +142,26 @@ let filtered = lines.map(line => [line[attributes.length], line.slice(0, attribu
 // ==== <Inject Synthetic Features>
 if (synthetic) {
   let count = features.length;
-  for (let i = 0; i < count - 1; i++) {
-    for (let q = i + 1; q < count; q++) {
-      features.push(features[i] + '-' + features[q]);
 
-      attributes.push(attributes[i].map(attrI => attributes[q].map(attrQ => attrI + '-' + attrQ)).flat());
+  // for (let i = 0; i < count - 1; i++) {
+  //   for (let q = i + 1; q < count; q++) {
+  //     features.push(features[i] + '-' + features[q]);
 
-      filtered.forEach(line => line[1].push(line[1][i] + '-' + line[1][q]))
+  //     attributes.push(attributes[i].map(attrI => attributes[q].map(attrQ => attrI + '-' + attrQ)).flat());
+
+  //     filtered.forEach(line => line[1].push(line[1][i] + '-' + line[1][q]));
+  //   }
+  // }
+
+  for (let i = 0; i < count - 2; i++) {
+    for (let q = i + 1; q < count - 1; q++) {
+      for (let b = q + 1; b < count; b++) {
+        features.push(features[i] + '-' + features[q] + '-' + features[b]);
+  
+        attributes.push(attributes[i].map(attrI => attributes[q].map(attrQ => attributes[b].map(attrB => attrI + '-' + attrQ + '-' + attrB)).flat()).flat());
+  
+        filtered.forEach(line => line[1].push(line[1][i] + '-' + line[1][q] + '-' + line[1][b]));
+      }
     }
   }
 }
@@ -202,7 +215,9 @@ if (trials) {
   output.log(`Running ${trialCount} trials ...`);
 
   window.setTimeout(() => {
+    let start = performance.now();
     let tests = range(trialCount).map(_ => evaluateData());
+    output.log(`Time elapsed: ${performance.now() - start}ms\n`);
 
     output.log(`Min: ${Math.min(...tests)}`);
     output.log(`Max: ${Math.max(...tests)}`);
