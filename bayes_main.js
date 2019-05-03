@@ -11,7 +11,7 @@ let features = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety'];
 let classes = ['unacc', 'acc', 'good', 'vgood'];
 let safeLogMin = -100;
 
-let trials = false;
+let trials = true;
 
 // ==== <Utility functions & data>
 let el;
@@ -67,6 +67,34 @@ let dominant = range(features.length + 1)
 // filtered = [[label, [features, ...]], ...]
 let filtered = lines.map(line => [line[attributes.length], line.slice(0, attributes.length).map((item, i) => item === '?' ? dominant[i] : item)]);
 
+// ==== <Inject Synthetic Features>
+  let count = features.length;
+
+  // 2 feature cross
+  // for (let i = 0; i < count - 1; i++) {
+  //   for (let q = i + 1; q < count; q++) {
+  //     features.push(features[i] + '-' + features[q]);
+
+  //     attributes.push(attributes[i].map(attrI => attributes[q].map(attrQ => attrI + '-' + attrQ)).flat());
+
+  //     filtered.forEach(line => line[1].push(line[1][i] + '-' + line[1][q]));
+  //   }
+  // }
+
+  // 3 feature cross
+  for (let i = 0; i < count - 2; i++) {
+    for (let q = i + 1; q < count - 1; q++) {
+      for (let b = q + 1; b < count; b++) {
+        features.push(features[i] + '-' + features[q] + '-' + features[b]);
+  
+        attributes.push(attributes[i].map(attrI => attributes[q].map(attrQ => attributes[b].map(attrB => attrI + '-' + attrQ + '-' + attrB)).flat()).flat());
+  
+        filtered.forEach(line => line[1].push(line[1][i] + '-' + line[1][q] + '-' + line[1][b]));
+      }
+    }
+  }
+// ==== </Inject Synthetic Features>
+
 // ==== <Run the tests>
 function evaluateData(print = false) {
   // Shuffle and split: training 80%, testing 20%
@@ -99,10 +127,11 @@ function evaluateData(print = false) {
       correct++;
 
   // Output results
-  if (print)
+  if (print) {
     output.log(`${correct} correct of ${testing.length} samples, accuracy = ${(correct / testing.length).toFixed(3)}\n\n`);
+    // testing.map(item => output.log(`${item} -> ${predict(item, cprob, pprob)}`));
+  }
 
-  testing.map(item => output.log(`${item} -> ${predict(item, cprob, pprob)}`));
   return correct / testing.length;
 }
 
