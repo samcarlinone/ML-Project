@@ -11,7 +11,7 @@ let features = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety'];
 let classes = ['unacc', 'acc', 'good', 'vgood'];
 let safeLogMin = -100;
 
-let trials = true;
+let trials = false;
 
 // ==== <Utility functions & data>
 let el;
@@ -129,7 +129,8 @@ function evaluateData(print = false) {
   // Output results
   if (print) {
     output.log(`${correct} correct of ${testing.length} samples, accuracy = ${(correct / testing.length).toFixed(3)}\n\n`);
-    // testing.map(item => output.log(`${item} -> ${predict(item, cprob, pprob)}`));
+    
+    testing.map(item => output.log(`${item.flat().map(a => (a+'').padStart(17)).join('')} -> ${predict(item, cprob, pprob)}`));
   }
 
   return correct / testing.length;
